@@ -4,9 +4,10 @@ import java.io.IOException;
 import java.util.*;
 
 class GeneticAlgorithm {
+    private static final double Pc = 0.5; // Crossover probability, can be set between 0.4 and 0.7
 
     private static final Random random = new Random();
-
+    //comments
     public static List<List<Integer>> initializePopulation(int populationSize, int numberOfGenes) {
         List<List<Integer>> population = new ArrayList<>();
         for (int i = 0; i < populationSize; i++) {
@@ -18,7 +19,7 @@ class GeneticAlgorithm {
         }
         return population;
     }
-
+    //comments
     public static int calculateFitness(List<Integer> chromosome, List<Integer> taskTimes, int maxTimeLimit) {
         int process1Time = 0;
         int process2Time = 0;
@@ -39,60 +40,95 @@ class GeneticAlgorithm {
     }
 
     public static List<List<Integer>> rouletteWheelSelection(List<List<Integer>> population, List<Integer> fitnessValues) {
+        // List to store the selected individuals
         List<List<Integer>> selectedPopulation = new ArrayList<>();
+
+        // Array to store selection probabilities for each individual
         double[] probabilities = new double[fitnessValues.size()];
+        // Array to store cumulative probabilities for selecting ranges
         double[] cumulativeProbabilities = new double[fitnessValues.size()];
 
+        // Calculate total fitness as the sum of 1/fitness (inverse fitness, minimize)
         double totalFitness = 0;
         for (int fitness : fitnessValues) {
+            // If fitness is max, we skip it (0 probability), else we use 1/fitness
             totalFitness += (fitness == Integer.MAX_VALUE) ? 0 : 1.0 / fitness;
         }
 
+        // Calculate individual probabilities for selection based on total fitness
         for (int i = 0; i < fitnessValues.size(); i++) {
             probabilities[i] = (fitnessValues.get(i) == Integer.MAX_VALUE ? 0 : 1.0 / fitnessValues.get(i)) / totalFitness;
         }
 
+        // Calculate cumulative probabilities, used for defining ranges
         cumulativeProbabilities[0] = probabilities[0];
         for (int i = 1; i < probabilities.length; i++) {
             cumulativeProbabilities[i] = cumulativeProbabilities[i - 1] + probabilities[i];
         }
 
+        // For each individual, select one based on their cumulative probability range
         for (int i = 0; i < population.size(); i++) {
+            // Generate a random number between 0 and 1
             double rand = random.nextDouble();
+            // Find the individual whose cumulative probability range contains 'rand'
             for (int j = 0; j < cumulativeProbabilities.length; j++) {
                 if (rand <= cumulativeProbabilities[j]) {
+                    // Add the selected individual to the new population
                     selectedPopulation.add(new ArrayList<>(population.get(j)));
                     break;
                 }
             }
         }
 
+        // Return the newly selected population
         return selectedPopulation;
     }
 
-    public static List<List<Integer>> crossover(List<List<Integer>> selectedPopulation, int crossoverPoint) {
+
+    public static List<List<Integer>> crossover(List<List<Integer>> selectedPopulation) {
         List<List<Integer>> newPopulation = new ArrayList<>();
 
         for (int i = 0; i < selectedPopulation.size(); i += 2) {
             List<Integer> parent1 = selectedPopulation.get(i);
             List<Integer> parent2 = selectedPopulation.get((i + 1) % selectedPopulation.size()); // Wrap around for odd sizes
 
-            List<Integer> child1 = new ArrayList<>(parent1.subList(0, crossoverPoint));
-            List<Integer> child2 = new ArrayList<>(parent2.subList(0, crossoverPoint));
+            // Generate a random crossover point between 1 and L-1
+            int chromosomeLength = parent1.size();
 
-            child1.addAll(parent2.subList(crossoverPoint, parent2.size()));
-            child2.addAll(parent1.subList(crossoverPoint, parent1.size()));
+            // r1
+            int crossoverPoint = random.nextInt(chromosomeLength - 1) + 1; // r1 in range [1, L-1]
 
-            newPopulation.add(child1);
-            newPopulation.add(child2);
+            // Generate random number r2 to decide if crossover occurs
+            double r2 = random.nextDouble();
+
+            if (r2 <= Pc) {
+                // Perform crossover
+                List<Integer> child1 = new ArrayList<>(parent1.subList(0, crossoverPoint));
+                List<Integer> child2 = new ArrayList<>(parent2.subList(0, crossoverPoint));
+
+                child1.addAll(parent2.subList(crossoverPoint, chromosomeLength));
+                child2.addAll(parent1.subList(crossoverPoint, chromosomeLength));
+
+                newPopulation.add(child1);
+                newPopulation.add(child2);
+            } else {
+                // No crossover, add parents as they are
+                newPopulation.add(new ArrayList<>(parent1));
+                newPopulation.add(new ArrayList<>(parent2));
+            }
         }
 
         return newPopulation;
     }
 
+
     public static List<Integer> mutate(List<Integer> chromosome, double mutationRate) {
         for (int i = 0; i < chromosome.size(); i++) {
-            if (random.nextDouble() < mutationRate) {
+            // Generate random number ri in range [0, 1]
+            double ri = random.nextDouble();
+
+            // If ri is less than or equal to mutation rate, flip the bit
+            if (ri <= mutationRate) {
                 chromosome.set(i, chromosome.get(i) == 0 ? 1 : 0); // Flip bit
             }
         }
@@ -133,8 +169,9 @@ class GeneticAlgorithm {
             optimalFound = fitnessValues.contains(bestFitness) && bestFitness <= maxTimeLimit;
             if (optimalFound) break;
 
+            // to be changed
             List<List<Integer>> selectedPopulation = rouletteWheelSelection(population, fitnessValues);
-            List<List<Integer>> newPopulation = crossover(selectedPopulation, taskTimes.size() / 2);
+            List<List<Integer>> newPopulation = crossover(selectedPopulation);
 
             for (int i = 0; i < newPopulation.size(); i++) {
                 newPopulation.set(i, mutate(newPopulation.get(i), mutationRate));
