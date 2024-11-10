@@ -11,9 +11,10 @@ import java.io.IOException;
 import java.util.*;
 
 class GeneticAlgorithm {
-    private static final double Pc = 0.5; // Crossover probability, can be set between 0.4 and 0.7
+    private static final double Pc = 0.5; // Crossover probability,between 0.4 and 0.7
 
     private static final Random random = new Random();
+
     public static List<List<Integer>> initializePopulation(int populationSize, int numberOfGenes) {
         List<List<Integer>> population = new ArrayList<>();
         for (int i = 0; i < populationSize; i++) {
@@ -25,6 +26,7 @@ class GeneticAlgorithm {
         }
         return population;
     }
+
     public static int calculateFitness(List<Integer> chromosome, List<Integer> taskTimes, int maxTimeLimit) {
         int process1Time = 0;
         int process2Time = 0;
@@ -58,6 +60,11 @@ class GeneticAlgorithm {
         for (int fitness : fitnessValues) {
             // If fitness is max, we skip it (0 probability), else we use 1/fitness
             totalFitness += (fitness == Integer.MAX_VALUE) ? 0 : 1.0 / fitness;
+        }
+
+        if (totalFitness == 0) { // No feasible solutions
+            // Return the population as is, or handle accordingly
+            return new ArrayList<>(population);
         }
 
         // Calculate individual probabilities for selection based on total fitness
@@ -180,49 +187,56 @@ class GeneticAlgorithm {
                 }
             }
 
-            optimalFound = fitnessValues.contains(bestFitness) && bestFitness <= maxTimeLimit ;
+            optimalFound = fitnessValues.contains(bestFitness) && bestFitness <= maxTimeLimit;
             if (optimalFound) break;
-            if(bestFitness == optimalFitness){ break; }
-            // to be changed
+            if (bestFitness == optimalFitness) { break; }
+            // Selection
             List<List<Integer>> selectedPopulation = rouletteWheelSelection(population, fitnessValues);
+            // Crossover
             List<List<Integer>> newPopulation = crossover(selectedPopulation);
 
+            // Mutation
             for (int i = 0; i < newPopulation.size(); i++) {
                 newPopulation.set(i, mutate(newPopulation.get(i), mutationRate));
             }
 
+            // Elitism
             population = elitismReplacement(newPopulation, fitnessValues, elitismCount);
             generation++;
         }
 
         // Output the best solution details
         System.out.println("Test Case #" + testCaseIndex);
-        System.out.println("Best Fitness (Score): " + bestFitness);
-        System.out.println("Best Chromosome: " + bestChromosome);
+        if (bestFitness <= maxTimeLimit) {
+            System.out.println("Best Fitness (Score): " + bestFitness);
+            System.out.println("Best Chromosome: " + bestChromosome);
 
-        // Split tasks between two processes based on the best chromosome
-        List<Integer> process1Tasks = new ArrayList<>();
-        List<Integer> process2Tasks = new ArrayList<>();
-        int process1Time = 0;
-        int process2Time = 0;
+            // Split tasks between two processes based on the best chromosome
+            List<Integer> process1Tasks = new ArrayList<>();
+            List<Integer> process2Tasks = new ArrayList<>();
+            int process1Time = 0;
+            int process2Time = 0;
 
-        for (int i = 0; i < bestChromosome.size(); i++) {
-            if (bestChromosome.get(i) == 1) {
-                process1Tasks.add(taskTimes.get(i));
-                process1Time += taskTimes.get(i);
-            } else {
-                process2Tasks.add(taskTimes.get(i));
-                process2Time += taskTimes.get(i);
+            for (int i = 0; i < bestChromosome.size(); i++) {
+                if (bestChromosome.get(i) == 1) {
+                    process1Tasks.add(taskTimes.get(i));
+                    process1Time += taskTimes.get(i);
+                } else {
+                    process2Tasks.add(taskTimes.get(i));
+                    process2Time += taskTimes.get(i);
+                }
             }
-        }
 
-        System.out.println("Process 1 Tasks: " + process1Tasks + " | Total Time: " + process1Time);
-        System.out.println("Process 2 Tasks: " + process2Tasks + " | Total Time: " + process2Time);
+            System.out.println("Process 1 Tasks: " + process1Tasks + " | Total Time: " + process1Time);
+            System.out.println("Process 2 Tasks: " + process2Tasks + " | Total Time: " + process2Time);
+        } else {
+            System.out.println("No solution");
+        }
         System.out.println();
     }
 
     public static void main(String[] args) {
-        String filePath = "input.txt"; // Change to your file path
+        String filePath = "input.txt";
         readAndProcessFile(filePath);
     }
 
